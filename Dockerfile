@@ -1,5 +1,5 @@
 # Stage 1: Build WebUI assets
-FROM node:20-alpine AS webui-builder
+FROM node:22-alpine AS webui-builder
 WORKDIR /app/webui
 COPY webui/package*.json ./
 RUN npm ci
@@ -10,15 +10,15 @@ RUN npm run build
 FROM alpine:3.20 AS zig-builder
 WORKDIR /app
 
-# build-base / musl-dev is required for Zig when link_libc = true
 RUN apk add --no-cache curl xz tar jq build-base musl-dev
 
-# Automatically resolve and install official Zig 0.14.0 / 0.15 matching CPU arch
+# Install Zig 0.15.0 (nightly/dev 0.15 required for std.io.Writer.Allocating)
 RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then ZIG_ARCH="x86_64"; \
-    elif [ "$ARCH" = "aarch64" ]; then ZIG_ARCH="aarch64"; \
+    if [ "$ARCH" = "x86_64" ]; then ZIG_TARGET="x86_64-linux"; \
+    elif [ "$ARCH" = "aarch64" ]; then ZIG_TARGET="aarch64-linux"; \
     else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
-    curl -fL "https://ziglang.org/download/0.14.0/zig-linux-${ZIG_ARCH}-0.14.0.tar.xz" -o zig.tar.xz && \
+    ZIG_URL=$(curl -s https://ziglang.org/download/index.json | jq -r ".master.\"${ZIG_TARGET}\".tarball") && \
+    curl -fL "$ZIG_URL" -o zig.tar.xz && \
     mkdir -p /opt/zig && \
     tar -xf zig.tar.xz -C /opt/zig --strip-components=1 && \
     ln -s /opt/zig/zig /usr/local/bin/zig && \
@@ -35,7 +35,6 @@ RUN zig build -Doptimize=ReleaseSafe --summary all
 FROM alpine:3.20
 WORKDIR /app
 
-# Runtime dependencies: curl (streaming/proxy calls), openssl (cryptographic operations), ca-certificates
 RUN apk add --no-cache curl openssl ca-certificates tzdata
 
 COPY --from=zig-builder /app/zig-out/bin/zed2api /app/zed2api
