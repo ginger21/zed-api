@@ -19,13 +19,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the exact Zig version used by author (0.15.0-dev.120+69a473b64)
-ARG ZIG_VERSION=0.15.0-dev.120+69a473b64
+# Install official Zig 0.15.2 release
+ARG ZIG_VERSION=0.15.2
 RUN ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then ZIG_ARCH="x86_64"; \
     elif [ "$ARCH" = "aarch64" ]; then ZIG_ARCH="aarch64"; \
     else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
-    curl -fL "https://ziglang.org/builds/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz" -o zig.tar.xz && \
+    curl -fL "https://ziglang.org/download/${ZIG_VERSION}/zig-${ZIG_ARCH}-linux-${ZIG_VERSION}.tar.xz" -o zig.tar.xz && \
     mkdir -p /opt/zig && \
     tar -xf zig.tar.xz -C /opt/zig --strip-components=1 && \
     ln -s /opt/zig/zig /usr/local/bin/zig && \
