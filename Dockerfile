@@ -36,7 +36,12 @@ COPY build.zig build.zig.zon ./
 COPY src/ ./src/
 COPY --from=webui-builder /app/webui/dist/ /app/webui/dist/
 
-RUN zig build -Doptimize=ReleaseSafe --summary all
+# Use generic CPU baseline (x86_64-v2 / native baseline) to avoid "Illegal instruction" on VPS with older vCPU flags
+RUN if [ "$(uname -m)" = "x86_64" ]; then \
+      zig build -Doptimize=ReleaseSafe -Dcpu=x86_64_v2 --summary all; \
+    else \
+      zig build -Doptimize=ReleaseSafe --summary all; \
+    fi
 
 # Stage 3: Minimal runtime image
 FROM ubuntu:24.04
