@@ -508,7 +508,7 @@ pub fn listenAuthServer(port: u16) !std.net.Server {
         const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, port);
         if (addr.listen(.{ .reuse_address = true })) |server| {
             return server;
-        } catch {}
+        } else |_| {}
     }
     const random_addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, 0);
     return try random_addr.listen(.{});
