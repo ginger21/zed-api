@@ -49,7 +49,7 @@ pub fn run(allocator: std.mem.Allocator, port: u16) !void {
     const host_ip = if (std.process.getEnvVarOwned(allocator, "HOST")) |h| blk: {
         defer allocator.free(h);
         break :blk parseHostIp(h) orelse [4]u8{ 127, 0, 0, 1 };
-    } catch [4]u8{ 127, 0, 0, 1 };
+    } else |_| [4]u8{ 127, 0, 0, 1 };
 
     std.debug.print("[zed2api] http://{d}.{d}.{d}.{d}:{d}\n[zed2api] {d} account(s) loaded\n", .{ host_ip[0], host_ip[1], host_ip[2], host_ip[3], port, account_mgr.list.items.len });
 

@@ -498,7 +498,7 @@ pub fn getAuthPort(allocator: std.mem.Allocator) u16 {
     if (std.process.getEnvVarOwned(allocator, "AUTH_PORT")) |p| {
         defer allocator.free(p);
         return std.fmt.parseInt(u16, p, 10) catch 8002;
-    } catch {
+    } else |_| {
         return 8002;
     }
 }

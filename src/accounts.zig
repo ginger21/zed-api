@@ -212,7 +212,7 @@ pub const AccountManager = struct {
         if (count == 0) return 0;
 
         var n: usize = 0;
-        var seen = [_]bool{false} ** 64;
+        var seen: [64]bool = @splat(false);
 
         // 1) Current account first, if healthy.
         if (self.current < total and isAvailable(&self.list.items[self.current])) {
