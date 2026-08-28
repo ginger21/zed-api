@@ -494,6 +494,26 @@ fn hexVal(c: u8) ?u8 {
 
 // ── Login flow ──
 
+pub fn getAuthPort(allocator: std.mem.Allocator) u16 {
+    if (std.process.getEnvVarOwned(allocator, "AUTH_PORT")) |p| {
+        defer allocator.free(p);
+        return std.fmt.parseInt(u16, p, 10) catch 8002;
+    } catch {
+        return 8002;
+    }
+}
+
+pub fn listenAuthServer(port: u16) !std.net.Server {
+    if (port != 0) {
+        const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, port);
+        if (addr.listen(.{ .reuse_address = true })) |server| {
+            return server;
+        } catch {}
+    }
+    const random_addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, 0);
+    return try random_addr.listen(.{});
+}
+
 /// CLI login: generate keypair, start local server, open browser, wait for callback
 pub fn login(allocator: std.mem.Allocator) !Credentials {
     var keypair = try RsaKeyPair.generate(allocator);
@@ -502,8 +522,8 @@ pub fn login(allocator: std.mem.Allocator) !Credentials {
     const pub_key = try keypair.exportPublicKeyB64(allocator);
     defer allocator.free(pub_key);
 
-    const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, 0);
-    var tcp = try addr.listen(.{});
+    const auth_port = getAuthPort(allocator);
+    var tcp = try listenAuthServer(auth_port);
     defer tcp.deinit();
     const port = tcp.listen_address.getPort();
 

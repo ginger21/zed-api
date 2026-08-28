@@ -1,0 +1,12 @@
+.git
+.github
+zig-cache
+zig-out
+node_modules
+webui/node_modules
+webui/dist
+accounts.json
+active_account.txt
+*.ps1
+*.sh
+docs

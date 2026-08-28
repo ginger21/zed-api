@@ -27,13 +27,31 @@ var cached_models_openai: ?[]const u8 = null;
 var cached_models_time: i64 = 0;
 const MODELS_CACHE_TTL: i64 = 3600; // 1 hour
 
+fn parseHostIp(s: []const u8) ?[4]u8 {
+    var it = std.mem.splitScalar(u8, s, '.');
+    var res: [4]u8 = undefined;
+    var i: usize = 0;
+    while (it.next()) |part| {
+        if (i >= 4) return null;
+        res[i] = std.fmt.parseInt(u8, part, 10) catch return null;
+        i += 1;
+    }
+    if (i != 4) return null;
+    return res;
+}
+
 pub fn run(allocator: std.mem.Allocator, port: u16) !void {
     global_allocator = allocator;
     account_mgr = accounts.AccountManager.init(allocator);
     defer account_mgr.deinit();
     account_mgr.loadFromFile() catch {};
 
-    std.debug.print("[zed2api] http://127.0.0.1:{d}\n[zed2api] {d} account(s) loaded\n", .{ port, account_mgr.list.items.len });
+    const host_ip = if (std.process.getEnvVarOwned(allocator, "HOST")) |h| blk: {
+        defer allocator.free(h);
+        break :blk parseHostIp(h) orelse [4]u8{ 127, 0, 0, 1 };
+    } catch [4]u8{ 127, 0, 0, 1 };
+
+    std.debug.print("[zed2api] http://{d}.{d}.{d}.{d}:{d}\n[zed2api] {d} account(s) loaded\n", .{ host_ip[0], host_ip[1], host_ip[2], host_ip[3], port, account_mgr.list.items.len });
 
     proxy.init(allocator);
     if (proxy.getHost()) |host| {
@@ -42,7 +60,7 @@ pub fn run(allocator: std.mem.Allocator, port: u16) !void {
         std.debug.print("[zed2api] proxy: none (set HTTPS_PROXY to use)\n", .{});
     }
 
-    const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, port);
+    const addr = std.net.Address.initIp4(host_ip, port);
     // On Windows SO_REUSEADDR allows two zed2api processes to bind the same
     // loopback port, which makes requests and logs land in different instances.
     // Fail the second start instead so one port always identifies one process.
@@ -695,9 +713,9 @@ fn handleLogin(body: []const u8) !Response {
         return err;
     };
 
-    const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, 0);
+    const auth_port = auth.getAuthPort(global_allocator);
     const tcp = try global_allocator.create(std.net.Server);
-    tcp.* = addr.listen(.{}) catch |err| {
+    tcp.* = auth.listenAuthServer(auth_port) catch |err| {
         global_allocator.free(pub_key);
         keypair.deinit();
         global_allocator.destroy(keypair);
