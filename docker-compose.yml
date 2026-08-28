@@ -1,15 +1,12 @@
 services:
   zed-api:
-    build: .
+    image: ghcr.io/ginger21/zed-api:latest
     container_name: zed-api
     restart: unless-stopped
-    # 核心安全设计：不配置 ports 端口映射！不向公网暴露任何端口
     environment:
       - HOST=0.0.0.0
       - AUTH_PORT=8002
       - TZ=Asia/Shanghai
-      # 如果 VPS 访问上游需要代理，可取消注释并配置：
-      # - HTTPS_PROXY=http://your-proxy-ip:port
     volumes:
       - ./accounts.json:/app/accounts.json
       - ./active_account.txt:/app/active_account.txt
@@ -18,8 +15,8 @@ services:
         limits:
           memory: 128M
     networks:
-      - zed-net
+      - common-network
 
 networks:
-  zed-net:
-    name: zed-internal-net
+  common-network:
+    external: true
