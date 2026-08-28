@@ -6,7 +6,7 @@ RUN npm ci
 COPY webui/ ./
 RUN npm run build
 
-# Stage 2: Build Zig backend on Ubuntu (native glibc environment)
+# Stage 2: Build Zig backend on Ubuntu
 FROM ubuntu:24.04 AS zig-builder
 WORKDIR /app
 
@@ -15,18 +15,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     xz-utils \
     tar \
-    jq \
     build-essential \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Zig master (0.15.x)
+# Install the exact Zig version used by author (0.15.0-dev.120+69a473b64)
+ARG ZIG_VERSION=0.15.0-dev.120+69a473b64
 RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then ZIG_TARGET="x86_64-linux"; \
-    elif [ "$ARCH" = "aarch64" ]; then ZIG_TARGET="aarch64-linux"; \
+    if [ "$ARCH" = "x86_64" ]; then ZIG_ARCH="x86_64"; \
+    elif [ "$ARCH" = "aarch64" ]; then ZIG_ARCH="aarch64"; \
     else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
-    ZIG_URL=$(curl -s https://ziglang.org/download/index.json | jq -r ".master.\"${ZIG_TARGET}\".tarball") && \
-    curl -fL "$ZIG_URL" -o zig.tar.xz && \
+    curl -fL "https://ziglang.org/builds/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz" -o zig.tar.xz && \
     mkdir -p /opt/zig && \
     tar -xf zig.tar.xz -C /opt/zig --strip-components=1 && \
     ln -s /opt/zig/zig /usr/local/bin/zig && \
@@ -37,7 +36,7 @@ COPY build.zig build.zig.zon ./
 COPY src/ ./src/
 COPY --from=webui-builder /app/webui/dist/ /app/webui/dist/
 
-RUN ls -la /app/webui/dist/ && zig build -Doptimize=ReleaseSafe --summary all
+RUN zig build -Doptimize=ReleaseSafe --summary all
 
 # Stage 3: Minimal runtime image
 FROM ubuntu:24.04
